@@ -464,51 +464,26 @@ with aba2:
 # ABA 3: TESTES DE HIPÓTESE PARA PROPORÇÃO
 # ===============================
 with aba3:
-    st.markdown("""
-        <style>
-        .prop-header {
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 1.5rem;
-            color: #ffffff;
-        }
-        .prop-section {
-            background-color: #1e1e1e;
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-        }
-        .prop-section-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #ffa500;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="prop-header">📊 Calculadora de Z-test para Proporção</div>', unsafe_allow_html=True)
+    st.header("Testes de Hipótese para Proporção")
     
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.markdown('<div class="prop-section">', unsafe_allow_html=True)
-        st.markdown('<div class="prop-section-title">📝 Entrada de Dados</div>', unsafe_allow_html=True)
+        st.subheader("Configuração do Teste")
         
-        proporcao_observada = st.number_input(
-            "Proporção Observada (p̂):",
-            value=0.5493,
-            min_value=0.0,
-            max_value=1.0,
-            step=0.0001,
-            format="%.4f",
-            help="Proporção observada na amostra (entre 0 e 1)",
-            key="prop_obs"
+        tipo_cauda_prop = st.radio(
+            "Tipo de Cauda",
+            options=["Bicaudal", "Unicaudal Esquerda", "Unicaudal Direita"],
+            help="Bicaudal: p ≠ p₀ | Esquerda: p < p₀ | Direita: p > p₀",
+            key="cauda_prop"
         )
         
+        st.markdown("---")
+        st.subheader("Dados do Teste")
+        
         proporcao_h0 = st.number_input(
-            "Proporção Esperada (p₀):",
-            value=0.25,
+            "Proporção Hipotética (H₀: p₀)",
+            value=0.5,
             min_value=0.0,
             max_value=1.0,
             step=0.01,
@@ -516,9 +491,17 @@ with aba3:
             help="Valor da proporção sob a hipótese nula (entre 0 e 1)"
         )
         
+        num_sucessos = st.number_input(
+            "Número de Sucessos (x)",
+            value=55,
+            min_value=0,
+            step=1,
+            help="Quantidade de sucessos observados na amostra"
+        )
+        
         tamanho_amostra_prop = st.number_input(
-            "Tamanho da Amostra (n):",
-            value=71,
+            "Tamanho da Amostra (n)",
+            value=100,
             min_value=1,
             step=1,
             help="Número total de observações",
@@ -526,27 +509,17 @@ with aba3:
         )
         
         alpha_prop = st.number_input(
-            "Nível de Significância (α):",
-            value=0.10,
+            "Nível de Significância (α)",
+            value=0.05,
             min_value=0.0001,
             max_value=0.9999,
             step=0.01,
-            format="%.3f",
+            format="%.4f",
             help="Probabilidade de erro tipo I (ex: 0.05 para 5%)",
             key="alpha_prop"
         )
         
-        tipo_cauda_prop = st.selectbox(
-            "Tipo de Teste:",
-            options=["Unicaudal (esquerda)", "Unicaudal (direita)", "Bicaudal"],
-            index=0,
-            help="Tipo de teste de hipótese",
-            key="cauda_prop"
-        )
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        executar_teste_prop = st.button("🧮 Calcular", type="primary", use_container_width=True)
+        executar_teste_prop = st.button("🧪 Executar Teste de Proporção", type="primary")
     
     with col2:
         if executar_teste_prop or 'teste_prop_executado' in st.session_state:
