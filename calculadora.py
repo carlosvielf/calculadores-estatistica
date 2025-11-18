@@ -461,301 +461,155 @@ with aba2:
                 st.info("Verifique se todos os valores inseridos são válidos.")
 
 # ===============================
-# ABA 3: TESTES DE HIPÓTESE PARA PROPORÇÃO
+# ABA 3: TESTE DE HIPÓTESE PARA PROPORÇÃO (Z-TEST)
 # ===============================
 with aba3:
-    st.header("Testes de Hipótese para Proporção")
+    st.header("Teste de Hipótese para Proporção (Z-test)")
     
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.subheader("Configuração do Teste")
+        st.subheader("Entrada de Dados")
         
+        # Tipo de teste
         tipo_cauda_prop = st.radio(
-            "Tipo de Cauda",
+            "Tipo de Teste",
             options=["Bicaudal", "Unicaudal Esquerda", "Unicaudal Direita"],
-            help="Bicaudal: p ≠ p₀ | Esquerda: p < p₀ | Direita: p > p₀",
-            key="cauda_prop"
+            help="Selecione o formato do teste"
         )
-        
-        st.markdown("---")
-        st.subheader("Dados do Teste")
-        
-        proporcao_h0 = st.number_input(
-            "Proporção Hipotética (H₀: p₀)",
-            value=0.5,
+
+        # Proporção observada
+        phat = st.number_input(
+            "Proporção Observada (p̂)",
+            value=0.55,
             min_value=0.0,
             max_value=1.0,
             step=0.01,
-            format="%.4f",
-            help="Valor da proporção sob a hipótese nula (entre 0 e 1)"
+            format="%.4f"
         )
-        
-        num_sucessos = st.number_input(
-            "Número de Sucessos (x)",
-            value=55,
-            min_value=0,
-            step=1,
-            help="Quantidade de sucessos observados na amostra"
+
+        # Proporção esperada
+        p0 = st.number_input(
+            "Proporção Esperada (p₀)",
+            value=0.50,
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            format="%.4f"
         )
-        
-        tamanho_amostra_prop = st.number_input(
+
+        # Tamanho da amostra
+        n_prop = st.number_input(
             "Tamanho da Amostra (n)",
             value=100,
             min_value=1,
-            step=1,
-            help="Número total de observações",
-            key="n_prop"
+            step=1
         )
-        
+
+        # Nível de significância
         alpha_prop = st.number_input(
             "Nível de Significância (α)",
             value=0.05,
             min_value=0.0001,
             max_value=0.9999,
             step=0.01,
-            format="%.4f",
-            help="Probabilidade de erro tipo I (ex: 0.05 para 5%)",
-            key="alpha_prop"
+            format="%.4f"
         )
-        
-        executar_teste_prop = st.button("🧪 Executar Teste de Proporção", type="primary")
+
+        # Botão
+        calcular_prop = st.button("Calcular Teste de Proporção", type="primary")
     
+    # ---------------------------------------------
+    # RESULTADOS
+    # ---------------------------------------------
     with col2:
-        if executar_teste_prop or 'teste_prop_executado' in st.session_state:
-            st.session_state['teste_prop_executado'] = True
-            
+        if calcular_prop:
             try:
-                # Validações
-                if num_sucessos > tamanho_amostra_prop:
-                    st.error("❌ O número de sucessos não pode ser maior que o tamanho da amostra!")
-                elif alpha_prop <= 0 or alpha_prop >= 1:
-                    st.error("❌ O nível de significância (α) deve estar entre 0.0001 e 0.9999")
+                # Erro padrão sob H0
+                erro_padrao = np.sqrt(p0 * (1 - p0) / n_prop)
+
+                # Estatística Z
+                z = (phat - p0) / erro_padrao
+
+                # P-valor
+                if tipo_cauda_prop == "Bicaudal":
+                    pvalor = 2 * (1 - stats.norm.cdf(abs(z)))
+                    z_crit_neg = stats.norm.ppf(alpha_prop / 2)
+                    z_crit_pos = stats.norm.ppf(1 - alpha_prop / 2)
+                elif tipo_cauda_prop == "Unicaudal Esquerda":
+                    pvalor = stats.norm.cdf(z)
+                    z_crit = stats.norm.ppf(alpha_prop)
+                else:  # Direita
+                    pvalor = 1 - stats.norm.cdf(z)
+                    z_crit = stats.norm.ppf(1 - alpha_prop)
+
+                significativo = pvalor < alpha_prop
+
+                # -----------------------
+                # Exibição dos resultados
+                # -----------------------
+                st.subheader("📊 Resultados")
+
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("Estatística Z", f"{z:.4f}")
+                col_b.metric("P-valor", f"{pvalor:.6f}")
+                col_c.metric("Nível α", f"{alpha_prop:.4f}")
+
+                st.markdown("---")
+
+                if significativo:
+                    st.success("🔴 Resultado Significativo — Rejeitamos H₀")
                 else:
-                    # Calcular proporção amostral
-                    proporcao_amostral = num_sucessos / tamanho_amostra_prop
-                    
-                    # Verificar condição de aproximação normal
-                    n_p0 = tamanho_amostra_prop * proporcao_h0
-                    n_q0 = tamanho_amostra_prop * (1 - proporcao_h0)
-                    
-                    aproximacao_valida = (n_p0 >= 5) and (n_q0 >= 5)
-                    
-                    if not aproximacao_valida:
-                        st.warning(f"⚠️ **Atenção**: As condições para aproximação normal não são totalmente satisfeitas (np₀ = {n_p0:.2f}, nq₀ = {n_q0:.2f}). Os resultados podem não ser precisos. Recomenda-se n×p₀ ≥ 5 e n×(1-p₀) ≥ 5.")
-                    
-                    # Calcular erro padrão sob H₀
-                    erro_padrao_prop = np.sqrt(proporcao_h0 * (1 - proporcao_h0) / tamanho_amostra_prop)
-                    
-                    # Calcular estatística Z
-                    z_estatistica = (proporcao_amostral - proporcao_h0) / erro_padrao_prop
-                    
-                    # Calcular p-valor
-                    if tipo_cauda_prop == "Bicaudal":
-                        p_valor_prop = 2 * (1 - stats.norm.cdf(abs(z_estatistica)))
-                        z_critico_neg = stats.norm.ppf(alpha_prop/2)
-                        z_critico_pos = stats.norm.ppf(1 - alpha_prop/2)
-                    elif tipo_cauda_prop == "Unicaudal Esquerda":
-                        p_valor_prop = stats.norm.cdf(z_estatistica)
-                        z_critico = stats.norm.ppf(alpha_prop)
-                    else:  # Unicaudal Direita
-                        p_valor_prop = 1 - stats.norm.cdf(z_estatistica)
-                        z_critico = stats.norm.ppf(1 - alpha_prop)
-                    
-                    # Decisão estatística
-                    rejeita_h0_prop = p_valor_prop < alpha_prop
-                    
-                    # Exibir resultados
-                    st.subheader("📊 Resultados do Teste")
-                    
-                    col_a, col_b, col_c, col_d = st.columns(4)
-                    
-                    with col_a:
-                        st.metric(
-                            "Proporção Amostral",
-                            f"{proporcao_amostral:.4f}",
-                            help=f"{num_sucessos}/{tamanho_amostra_prop}"
-                        )
-                    
-                    with col_b:
-                        st.metric(
-                            "Estatística Z",
-                            f"{z_estatistica:.4f}",
-                            help="Z-score calculado"
-                        )
-                    
-                    with col_c:
-                        st.metric(
-                            "P-valor",
-                            f"{p_valor_prop:.6f}",
-                            delta="Significativo" if rejeita_h0_prop else "Não Significativo",
-                            delta_color="inverse" if rejeita_h0_prop else "off"
-                        )
-                    
-                    with col_d:
-                        st.metric(
-                            "Nível α",
-                            f"{alpha_prop:.4f}",
-                            help="Nível de significância"
-                        )
-                    
-                    st.markdown("---")
-                    
-                    # Decisão e interpretação
-                    if rejeita_h0_prop:
-                        decisao_cor = "🔴"
-                        decisao_texto = "REJEITAR H₀"
-                        interpretacao_prop = f"""
-                        Como o **p-valor ({p_valor_prop:.6f})** é **menor** que o nível de significância **α = {alpha_prop}**, 
-                        **rejeitamos a hipótese nula (H₀)**.
-                        
-                        ### 📌 Conclusão:
-                        Há **evidências estatísticas significativas** para afirmar que a proporção populacional 
-                        **é diferente de {proporcao_h0:.4f}** (no caso bicaudal) ou segue a direção especificada 
-                        (unicaudal), ao nível de {int((1-alpha_prop)*100)}% de confiança.
-                        
-                        A proporção observada (p̂ = {proporcao_amostral:.4f}) em relação a H₀ (p₀ = {proporcao_h0:.4f}) 
-                        **não pode ser atribuída apenas ao acaso**.
-                        """
-                    else:
-                        decisao_cor = "🟢"
-                        decisao_texto = "NÃO REJEITAR H₀"
-                        interpretacao_prop = f"""
-                        Como o **p-valor ({p_valor_prop:.6f})** é **maior ou igual** ao nível de significância **α = {alpha_prop}**, 
-                        **não rejeitamos a hipótese nula (H₀)**.
-                        
-                        ### 📌 Conclusão:
-                        **Não há evidências estatísticas suficientes** para afirmar que a proporção populacional 
-                        seja diferente de {proporcao_h0:.4f} (ou segue a direção especificada no teste unicaudal).
-                        
-                        A proporção observada (p̂ = {proporcao_amostral:.4f}) em relação a H₀ (p₀ = {proporcao_h0:.4f}) 
-                        **pode ser atribuída à variação amostral aleatória**.
-                        """
-                    
-                    st.success(f"### {decisao_cor} Decisão: **{decisao_texto}**")
-                    st.markdown(interpretacao_prop)
-                    
-                    # Informações detalhadas
-                    st.markdown("---")
-                    st.markdown(f"""
-                    ### 📋 Detalhes do Cálculo
-                    
-                    - **Proporção Hipotética (p₀):** {proporcao_h0:.4f}
-                    - **Proporção Amostral (p̂):** {proporcao_amostral:.4f} = {num_sucessos}/{tamanho_amostra_prop}
-                    - **Erro Padrão:** {erro_padrao_prop:.6f}
-                    - **Estatística Z:** {z_estatistica:.4f}
-                    - **P-valor:** {p_valor_prop:.6f}
-                    - **Nível de Significância (α):** {alpha_prop}
-                    - **Condição np₀:** {n_p0:.2f} {'✓' if n_p0 >= 5 else '✗'} (mínimo: 5)
-                    - **Condição n(1-p₀):** {n_q0:.2f} {'✓' if n_q0 >= 5 else '✗'} (mínimo: 5)
-                    
-                    ### 📊 Fórmula Utilizada
-                    
-                    **Z = (p̂ - p₀) / √[p₀(1-p₀)/n]**
-                    
-                    Onde:
-                    - p̂ = {proporcao_amostral:.4f} (proporção amostral)
-                    - p₀ = {proporcao_h0:.4f} (proporção sob H₀)
-                    - n = {tamanho_amostra_prop} (tamanho da amostra)
-                    - Erro Padrão = √[p₀(1-p₀)/n] = √[{proporcao_h0}×{1-proporcao_h0}/{tamanho_amostra_prop}] = {erro_padrao_prop:.6f}
-                    """)
-                    
-                    # Gráfico da distribuição
-                    st.markdown("---")
-                    st.subheader("📈 Visualização da Distribuição Normal")
-                    
-                    fig, ax = plt.subplots(figsize=(12, 6))
-                    
-                    # Criar valores para o eixo x
-                    x = np.linspace(-4, 4, 1000)
-                    y = stats.norm.pdf(x)
-                    
-                    # Plotar curva normal
-                    ax.plot(x, y, 'b-', linewidth=2, label='Distribuição Normal Padrão')
-                    
-                    # Pintar região de rejeição
-                    if tipo_cauda_prop == "Bicaudal":
-                        # Região esquerda
-                        x_rej_esq = x[x <= z_critico_neg]
-                        y_rej_esq = y[:len(x_rej_esq)]
-                        ax.fill_between(x_rej_esq, y_rej_esq, alpha=0.3, color='red', label='Região de Rejeição')
-                        
-                        # Região direita
-                        x_rej_dir = x[x >= z_critico_pos]
-                        y_rej_dir = y[len(y)-len(x_rej_dir):]
-                        ax.fill_between(x_rej_dir, y_rej_dir, alpha=0.3, color='red')
-                        
-                        # Linhas críticas
-                        ax.axvline(z_critico_neg, color='orange', linestyle='--', linewidth=2, label=f'Valores Críticos: ±{abs(z_critico_pos):.3f}')
-                        ax.axvline(z_critico_pos, color='orange', linestyle='--', linewidth=2)
-                        
-                    elif tipo_cauda_prop == "Unicaudal Esquerda":
-                        x_rej = x[x <= z_critico]
-                        y_rej = y[:len(x_rej)]
-                        ax.fill_between(x_rej, y_rej, alpha=0.3, color='red', label='Região de Rejeição')
-                        ax.axvline(z_critico, color='orange', linestyle='--', linewidth=2, label=f'Valor Crítico: {z_critico:.3f}')
-                        
-                    else:  # Unicaudal Direita
-                        x_rej = x[x >= z_critico]
-                        y_rej = y[len(y)-len(x_rej):]
-                        ax.fill_between(x_rej, y_rej, alpha=0.3, color='red', label='Região de Rejeição')
-                        ax.axvline(z_critico, color='orange', linestyle='--', linewidth=2, label=f'Valor Crítico: {z_critico:.3f}')
-                    
-                    # Linha da estatística observada
-                    ax.axvline(z_estatistica, color='green', linestyle='-', linewidth=3, label=f'Estatística Z Observada: {z_estatistica:.3f}')
-                    
-                    # Configurações do gráfico
-                    ax.set_xlabel('Valores da Estatística Z', fontsize=12)
-                    ax.set_ylabel('Densidade de Probabilidade', fontsize=12)
-                    ax.set_title(f'Distribuição Normal Padrão - Teste {tipo_cauda_prop} para Proporção', fontsize=14, fontweight='bold')
-                    ax.legend(loc='upper right', fontsize=10)
-                    ax.grid(True, alpha=0.3)
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    
-                    st.pyplot(fig)
-                    plt.close()
-                    
-                    # Tabela de resumo
-                    st.markdown("---")
-                    st.subheader("📋 Resumo do Teste")
-                    
-                    resumo_prop = pd.DataFrame({
-                        'Parâmetro': [
-                            'Tipo de Teste',
-                            'Tipo de Cauda',
-                            'Hipótese Nula (H₀)',
-                            'Proporção Amostral (p̂)',
-                            'Número de Sucessos (x)',
-                            'Tamanho da Amostra (n)',
-                            'Erro Padrão',
-                            'Estatística Z',
-                            'P-valor',
-                            'Nível de Significância (α)',
-                            'Aproximação Normal',
-                            'Decisão'
-                        ],
-                        'Valor': [
-                            'Z-test para Proporção',
-                            tipo_cauda_prop,
-                            f'p = {proporcao_h0:.4f}',
-                            f'{proporcao_amostral:.4f}',
-                            num_sucessos,
-                            tamanho_amostra_prop,
-                            f'{erro_padrao_prop:.6f}',
-                            f'{z_estatistica:.4f}',
-                            f'{p_valor_prop:.6f}',
-                            alpha_prop,
-                            'Válida ✓' if aproximacao_valida else 'Atenção ⚠️',
-                            decisao_texto
-                        ]
-                    })
-                    
-                    st.dataframe(resumo_prop, hide_index=True, use_container_width=True)
-                    
+                    st.info("🟢 Resultado Não Significativo — Não rejeitamos H₀")
+
+                st.markdown(f"""
+                ### 📌 Interpretação
+                
+                - Proporção observada (p̂): **{phat:.4f}**
+                - Proporção esperada (p₀): **{p0:.4f}**
+                - Diferença: **{phat - p0:.4f}**
+                
+                Com nível de significância α = **{alpha_prop}**,
+                o p-valor calculado foi **{pvalor:.6f}**.
+                """)
+
+                # -----------------------
+                # GRÁFICO
+                # -----------------------
+                st.subheader("📈 Visualização da Curva Normal")
+
+                fig, ax = plt.subplots(figsize=(12, 5))
+
+                x = np.linspace(-4, 4, 1000)
+                y = stats.norm.pdf(x)
+
+                ax.plot(x, y, linewidth=2)
+
+                # Região crítica
+                if tipo_cauda_prop == "Bicaudal":
+                    ax.fill_between(x, y, where=(x <= z_crit_neg), color='red', alpha=0.3)
+                    ax.fill_between(x, y, where=(x >= z_crit_pos), color='red', alpha=0.3)
+                    ax.axvline(z_crit_neg, color='red', linestyle='--')
+                    ax.axvline(z_crit_pos, color='red', linestyle='--')
+                elif tipo_cauda_prop == "Unicaudal Esquerda":
+                    ax.fill_between(x, y, where=(x <= z_crit), color='red', alpha=0.3)
+                    ax.axvline(z_crit, color='red', linestyle='--')
+                else:
+                    ax.fill_between(x, y, where=(x >= z_crit), color='red', alpha=0.3)
+                    ax.axvline(z_crit, color='red', linestyle='--')
+
+                # Linha do z calculado
+                ax.axvline(z, color='green', linewidth=3, label=f"z observado = {z:.3f}")
+
+                ax.set_title("Curva Normal Padrão com Região Crítica")
+                ax.grid(alpha=0.3)
+                ax.legend()
+
+                st.pyplot(fig)
+                plt.close()
+
             except Exception as e:
-                st.error(f"❌ Erro no cálculo: {str(e)}")
-                st.info("Verifique se todos os valores inseridos são válidos.")
+                st.error(f"Erro no cálculo: {str(e)}")
 
 # Rodapé
 st.markdown("---")
