@@ -472,9 +472,20 @@ with aba3:
     with col1:
         st.subheader("📝 Entrada de Dados")
         
-        # Inputs
+        # Inputs - ORDEM ALTERADA: Primeiro População, depois Amostra
+        p_0 = st.number_input(
+            "Proporção Populacional (p₀):",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.4,
+            step=0.01,
+            format="%.4f",
+            help="Proporção populacional esperada sob a hipótese nula (entre 0 e 1)",
+            key="p_0_prop"
+        )
+        
         p_hat = st.number_input(
-            "Proporção Observada (p̂):",
+            "Proporção Amostral (p̂):",
             min_value=0.0,
             max_value=1.0,
             value=0.5,
@@ -482,17 +493,6 @@ with aba3:
             format="%.4f",
             help="Proporção observada na amostra (entre 0 e 1)",
             key="p_hat_prop"
-        )
-        
-        p_0 = st.number_input(
-            "Proporção Esperada (p₀):",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.4,
-            step=0.01,
-            format="%.4f",
-            help="Proporção esperada sob a hipótese nula (entre 0 e 1)",
-            key="p_0_prop"
         )
         
         n_prop = st.number_input(
@@ -539,12 +539,12 @@ with aba3:
                 elif not (0 < alpha_prop < 1):
                     st.error("❌ O nível de significância deve estar entre 0 e 1")
                 else:
-                    # Calcular valor z
+                    # Calcular valor z SEM ARREDONDAMENTO
                     numerador = p_hat - p_0
                     denominador = math.sqrt((p_0 * (1 - p_0)) / n_prop)
                     z_value = numerador / denominador
                     
-                    # Calcular p-valor
+                    # Calcular p-valor SEM ARREDONDAMENTO
                     if test_type == 'Bicaudal':
                         p_value = 2 * (1 - stats.norm.cdf(abs(z_value)))
                     elif test_type == 'Unicaudal (direita)':
@@ -559,8 +559,8 @@ with aba3:
                     metric_col1, metric_col2 = st.columns(2)
                     
                     with metric_col1:
-                        st.metric("Valor Z", f"{z_value:.4f}")
-                        st.metric("P-valor", f"{p_value:.6f}")
+                        st.metric("Valor Z", f"{z_value:.6f}")
+                        st.metric("P-valor", f"{p_value:.8f}")
                     
                     with metric_col2:
                         st.metric("Nível α", f"{alpha_prop:.3f}")
@@ -577,8 +577,8 @@ with aba3:
                     # Interpretação adicional
                     with st.expander("📖 Interpretação dos Resultados"):
                         st.write(f"""
-                        - **Valor z = {z_value:.4f}**: Medida de quantos desvios-padrão a proporção observada está da proporção esperada.
-                        - **P-valor = {p_value:.4f}**: Probabilidade de observar um resultado tão extremo quanto o obtido, assumindo que H₀ é verdadeira.
+                        - **Valor z = {z_value:.6f}**: Medida de quantos desvios-padrão a proporção amostral está da proporção populacional.
+                        - **P-valor = {p_value:.8f}**: Probabilidade de observar um resultado tão extremo quanto o obtido, assumindo que H₀ é verdadeira.
                         - **Critério de decisão**: Como p-valor {'<' if significativo else '≥'} α ({alpha_prop}), {'rejeita-se' if significativo else 'não se rejeita'} H₀.
                         
                         ### 🎯 Fórmula Utilizada
@@ -586,10 +586,16 @@ with aba3:
                         **z = (p̂ - p₀) / √[p₀(1-p₀)/n]**
                         
                         Onde:
-                        - p̂ = {p_hat} (proporção observada)
-                        - p₀ = {p_0} (proporção esperada sob H₀)
+                        - p̂ = {p_hat} (proporção amostral)
+                        - p₀ = {p_0} (proporção populacional sob H₀)
                         - n = {n_prop} (tamanho da amostra)
-                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.4f}
+                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.8f}
+                        
+                        ### 📊 Cálculo Passo a Passo
+                        
+                        1. **Numerador:** p̂ - p₀ = {p_hat} - {p_0} = {numerador:.8f}
+                        2. **Denominador (Erro Padrão):** √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.8f}
+                        3. **Estatística z:** {numerador:.8f} / {denominador:.8f} = {z_value:.8f}
                         """)
                     
             except Exception as e:
@@ -620,21 +626,21 @@ with aba3:
                 # Região crítica direita
                 x_right = x[x >= z_crit]
                 ax.fill_between(x_right, stats.norm.pdf(x_right, 0, 1), alpha=0.4, color='red')
-                ax.axvline(-z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = ±{z_crit:.2f}')
+                ax.axvline(-z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = ±{z_crit:.4f}')
                 ax.axvline(z_crit, color='red', linestyle='--', linewidth=2)
             elif test_type == 'Unicaudal (direita)':
                 z_crit = stats.norm.ppf(1 - alpha_prop)
                 x_right = x[x >= z_crit]
                 ax.fill_between(x_right, stats.norm.pdf(x_right, 0, 1), alpha=0.4, color='red', label='Região Crítica')
-                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.2f}')
+                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.4f}')
             else:  # Unicaudal (esquerda)
                 z_crit = stats.norm.ppf(alpha_prop)
                 x_left = x[x <= z_crit]
                 ax.fill_between(x_left, stats.norm.pdf(x_left, 0, 1), alpha=0.4, color='red', label='Região Crítica')
-                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.2f}')
+                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.4f}')
             
             # Plotar valor z obtido
-            ax.axvline(z_value, color='green', linestyle='-', linewidth=3, label=f'Valor z obtido = {z_value:.2f}')
+            ax.axvline(z_value, color='green', linestyle='-', linewidth=3, label=f'Valor z obtido = {z_value:.4f}')
             
             # Configurações do gráfico
             ax.set_xlabel('Valor z', fontsize=12, fontweight='bold')
