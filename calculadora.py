@@ -472,25 +472,14 @@ with aba3:
     with col1:
         st.subheader("📝 Entrada de Dados")
         
-        # Inputs - ORDEM ALTERADA: Primeiro População, depois Amostra
-        p_0 = st.number_input(
-            "Proporção Populacional (p₀):",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.4,
-            step=0.01,
-            format="%.4f",
-            help="Proporção populacional esperada sob a hipótese nula (entre 0 e 1)",
-            key="p_0_prop"
-        )
-        
+        # Inputs na ordem correta: Primeiro Amostra, depois População
         p_hat = st.number_input(
             "Proporção Amostral (p̂):",
             min_value=0.0,
             max_value=1.0,
             value=0.5,
             step=0.01,
-            format="%.4f",
+            format="%.6f",
             help="Proporção observada na amostra (entre 0 e 1)",
             key="p_hat_prop"
         )
@@ -502,6 +491,17 @@ with aba3:
             step=1,
             help="Número de observações na amostra",
             key="n_prop"
+        )
+        
+        p_0 = st.number_input(
+            "Proporção Populacional sob H₀ (p₀):",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.4,
+            step=0.01,
+            format="%.6f",
+            help="Proporção populacional esperada sob a hipótese nula (entre 0 e 1)",
+            key="p_0_prop"
         )
         
         alpha_prop = st.number_input(
@@ -539,67 +539,86 @@ with aba3:
                 elif not (0 < alpha_prop < 1):
                     st.error("❌ O nível de significância deve estar entre 0 e 1")
                 else:
-                    # Calcular valor z SEM ARREDONDAMENTO
+                    # Verificar condições de aplicabilidade do teste Z
+                    np_0 = n_prop * p_0
+                    n_1_p0 = n_prop * (1 - p_0)
+                    
+                    if np_0 < 5 or n_1_p0 < 5:
+                        st.warning(f"⚠️ **Aviso:** As condições para aplicação do teste Z podem não estar satisfeitas.\n\n"
+                                 f"- n×p₀ = {np_0:.2f} (recomendado ≥ 5)\n"
+                                 f"- n×(1-p₀) = {n_1_p0:.2f} (recomendado ≥ 5)")
+                    
+                    # Calcular valor z SEM ARREDONDAMENTO - Máxima Precisão
                     # Fórmula: z = (p̂ - p₀) / √[p₀(1-p₀)/n]
                     numerador = p_hat - p_0
-                    variancia = p_0 * (1 - p_0)
-                    erro_padrao = math.sqrt(variancia / n_prop)
-                    z_value = numerador / erro_padrao
+                    variancia = p_0 * (1.0 - p_0)
+                    erro_padrao = (variancia / n_prop) ** 0.5  # Usando ** 0.5 para máxima precisão
                     
-                    # Calcular p-valor SEM ARREDONDAMENTO
-                    if test_type == 'Bicaudal':
-                        p_value = 2 * (1 - stats.norm.cdf(abs(z_value)))
-                    elif test_type == 'Unicaudal (direita)':
-                        p_value = 1 - stats.norm.cdf(z_value)
-                    else:  # Unicaudal (esquerda)
-                        p_value = stats.norm.cdf(z_value)
-                    
-                    # Determinar significância
-                    significativo = p_value < alpha_prop
-                    
-                    # Exibir resultados em cards
-                    metric_col1, metric_col2 = st.columns(2)
-                    
-                    with metric_col1:
-                        st.metric("Valor Z", f"{z_value:.6f}")
-                        st.metric("P-valor", f"{p_value:.8f}")
-                    
-                    with metric_col2:
-                        st.metric("Nível α", f"{alpha_prop:.3f}")
-                        st.metric("Tipo de Teste", test_type)
-                    
-                    # Resultado da significância
-                    if significativo:
-                        st.success("✅ **Estatisticamente SIGNIFICATIVO**")
-                        st.info(f"**Conclusão:** Rejeita-se a hipótese nula (H₀: p = {p_0})")
+                    # Evitar divisão por zero
+                    if erro_padrao == 0:
+                        st.error("❌ Erro: Erro padrão é zero. Verifique os valores de entrada.")
                     else:
-                        st.warning("⚠️ **NÃO estatisticamente significativo**")
-                        st.info(f"**Conclusão:** Não se rejeita a hipótese nula (H₀: p = {p_0})")
-                    
-                    # Interpretação adicional
-                    with st.expander("📖 Interpretação dos Resultados"):
-                        st.write(f"""
-                        - **Valor z = {z_value:.6f}**: Medida de quantos desvios-padrão a proporção amostral está da proporção populacional.
-                        - **P-valor = {p_value:.8f}**: Probabilidade de observar um resultado tão extremo quanto o obtido, assumindo que H₀ é verdadeira.
-                        - **Critério de decisão**: Como p-valor {'<' if significativo else '≥'} α ({alpha_prop}), {'rejeita-se' if significativo else 'não se rejeita'} H₀.
+                        z_value = numerador / erro_padrao
                         
-                        ### 🎯 Fórmula Utilizada
+                        # Calcular p-valor SEM ARREDONDAMENTO
+                        if test_type == 'Bicaudal':
+                            p_value = 2.0 * (1.0 - stats.norm.cdf(abs(z_value)))
+                        elif test_type == 'Unicaudal (direita)':
+                            p_value = 1.0 - stats.norm.cdf(z_value)
+                        else:  # Unicaudal (esquerda)
+                            p_value = stats.norm.cdf(z_value)
                         
-                        **z = (p̂ - p₀) / √[p₀(1-p₀)/n]**
+                        # Determinar significância
+                        significativo = p_value < alpha_prop
                         
-                        Onde:
-                        - p̂ = {p_hat} (proporção amostral)
-                        - p₀ = {p_0} (proporção populacional sob H₀)
-                        - n = {n_prop} (tamanho da amostra)
-                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {erro_padrao:.8f}
+                        # Exibir resultados em cards
+                        metric_col1, metric_col2 = st.columns(2)
                         
-                        ### 📊 Cálculo Passo a Passo
+                        with metric_col1:
+                            st.metric("Valor Z", f"{z_value:.10f}")
+                            st.metric("P-valor", f"{p_value:.10f}")
                         
-                        1. **Numerador:** p̂ - p₀ = {p_hat} - {p_0} = {numerador:.8f}
-                        2. **Variância:** p₀ × (1-p₀) = {p_0} × {1-p_0} = {variancia:.8f}
-                        3. **Erro Padrão:** √[{variancia:.8f}/{n_prop}] = {erro_padrao:.8f}
-                        4. **Estatística z:** {numerador:.8f} / {erro_padrao:.8f} = {z_value:.8f}
-                        """)
+                        with metric_col2:
+                            st.metric("Nível α", f"{alpha_prop:.6f}")
+                            st.metric("Tipo de Teste", test_type)
+                        
+                        # Resultado da significância
+                        if significativo:
+                            st.success("✅ **Estatisticamente SIGNIFICATIVO**")
+                            st.info(f"**Conclusão:** Rejeita-se a hipótese nula (H₀: p = {p_0:.6f})")
+                        else:
+                            st.warning("⚠️ **NÃO estatisticamente significativo**")
+                            st.info(f"**Conclusão:** Não se rejeita a hipótese nula (H₀: p = {p_0:.6f})")
+                        
+                        # Interpretação adicional
+                        with st.expander("📖 Interpretação dos Resultados"):
+                            st.write(f"""
+                            - **Valor z = {z_value:.10f}**: Medida de quantos desvios-padrão a proporção amostral está da proporção populacional.
+                            - **P-valor = {p_value:.10f}**: Probabilidade de observar um resultado tão extremo quanto o obtido, assumindo que H₀ é verdadeira.
+                            - **Critério de decisão**: Como p-valor {'<' if significativo else '≥'} α ({alpha_prop:.6f}), {'rejeita-se' if significativo else 'não se rejeita'} H₀.
+                            
+                            ### 🎯 Fórmula Utilizada
+                            
+                            **z = (p̂ - p₀) / √[p₀(1-p₀)/n]**
+                            
+                            Onde:
+                            - p̂ = {p_hat:.10f} (proporção amostral)
+                            - p₀ = {p_0:.10f} (proporção populacional sob H₀)
+                            - n = {n_prop} (tamanho da amostra)
+                            - Erro padrão = √[{p_0:.10f}×{1-p_0:.10f}/{n_prop}] = {erro_padrao:.10f}
+                            
+                            ### 📊 Cálculo Passo a Passo (Precisão Máxima)
+                            
+                            1. **Numerador:** p̂ - p₀ = {p_hat:.10f} - {p_0:.10f} = {numerador:.10f}
+                            2. **Variância:** p₀ × (1-p₀) = {p_0:.10f} × {1-p_0:.10f} = {variancia:.10f}
+                            3. **Erro Padrão:** √[{variancia:.10f}/{n_prop}] = {erro_padrao:.10f}
+                            4. **Estatística z:** {numerador:.10f} / {erro_padrao:.10f} = {z_value:.10f}
+                            
+                            ### ✅ Condições de Aplicabilidade
+                            
+                            - n×p₀ = {n_prop}×{p_0:.6f} = {np_0:.4f} {'✓' if np_0 >= 5 else '✗'} (deve ser ≥ 5)
+                            - n×(1-p₀) = {n_prop}×{1-p_0:.6f} = {n_1_p0:.4f} {'✓' if n_1_p0 >= 5 else '✗'} (deve ser ≥ 5)
+                            """)
                     
             except Exception as e:
                 st.error(f"❌ Erro ao calcular: {str(e)}")
