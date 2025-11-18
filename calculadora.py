@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 import pandas as pd
+import math
 
 # Configuração da página
 st.set_page_config(
@@ -464,53 +465,205 @@ with aba2:
 # ABA 3: TESTE DE HIPÓTESE PARA PROPORÇÃO (Z-TEST)
 # ===============================
 with aba3:
-
-    st.title("Calculadora de Proporção com Z-Test para Proporção")
-    st.write("Esta ferramenta calcula a proporção, o valor-z e o valor-p para testes de proporção.")
-
-    # Parâmetros de entrada
-    st.header("Parâmetros do Teste")
-    n = st.number_input("Tamanho da amostra (n):", min_value=1, step=1)
-    successes = st.number_input("Número de sucessos (x):", min_value=0, step=1)
-    null_proportion = st.number_input("Proporção nula (p₀):", min_value=0.0, max_value=1.0, step=0.01)
-
-    if st.button("Calcular"):
-        if successes > n:
-            st.error("Erro: O número de sucessos não pode ser maior que o tamanho da amostra.")
-        else:
-            # Cálculos
-            sample_proportion = successes / n
-            standard_error = np.sqrt((null_proportion * (1 - null_proportion)) / n)
-            z_value = (sample_proportion - null_proportion) / standard_error
-            p_value = 2 * (1 - stats.norm.cdf(abs(z_value)))  # Teste bilateral
-
-            # Resultados
-            st.subheader("Resultados")
-            st.write(f"**Proporção amostral (p̂):** {sample_proportion:.4f}")
-            st.write(f"**Erro padrão (EP):** {standard_error:.4f}")
-            st.write(f"**Estatística Z:** {z_value:.4f}")
-            st.write(f"**Valor-p:** {p_value:.4f}")
-
-            # Gráfico
-            st.subheader("Distribuição do Teste Z")
-
-            fig, ax = plt.subplots(figsize=(10, 5))
-
-            # Distribuição normal padrão
-            x = np.linspace(-4, 4, 500)
-            y = stats.norm.pdf(x)
-
-            ax.plot(x, y, label="Distribuição Normal Padrão")
-
-            # Linha do valor-z
-            ax.axvline(z_value, color='r', linestyle='--', label=f"Z calculado = {z_value:.4f}")
-
-            ax.set_title("Distribuição Normal Padrão com Estatística Z")
-            ax.set_xlabel("Valor Z")
-            ax.set_ylabel("Densidade")
-            ax.legend()
-
+    st.header("Teste de Hipótese para Proporção (Z-test)")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📝 Entrada de Dados")
+        
+        # Inputs
+        p_hat = st.number_input(
+            "Proporção Observada (p̂):",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.01,
+            format="%.4f",
+            help="Proporção observada na amostra (entre 0 e 1)",
+            key="p_hat_prop"
+        )
+        
+        p_0 = st.number_input(
+            "Proporção Esperada (p₀):",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.4,
+            step=0.01,
+            format="%.4f",
+            help="Proporção esperada sob a hipótese nula (entre 0 e 1)",
+            key="p_0_prop"
+        )
+        
+        n_prop = st.number_input(
+            "Tamanho da Amostra (n):",
+            min_value=1,
+            value=100,
+            step=1,
+            help="Número de observações na amostra",
+            key="n_prop"
+        )
+        
+        alpha_prop = st.number_input(
+            "Nível de Significância (α):",
+            min_value=0.001,
+            max_value=0.999,
+            value=0.05,
+            step=0.01,
+            format="%.3f",
+            help="Nível de significância para o teste (ex: 0.05 para 5%)",
+            key="alpha_prop"
+        )
+        
+        test_type = st.selectbox(
+            "Tipo de Teste:",
+            ["Bicaudal", "Unicaudal (direita)", "Unicaudal (esquerda)"],
+            help="Escolha o tipo de teste de hipótese",
+            key="test_type_prop"
+        )
+        
+        calcular_prop = st.button("🔢 Calcular", type="primary", use_container_width=True, key="calcular_prop")
+    
+    with col2:
+        st.subheader("📈 Resultados")
+        
+        if calcular_prop or 'prop_calculado' in st.session_state:
+            st.session_state['prop_calculado'] = True
+            
+            try:
+                # Validações
+                if not (0 <= p_hat <= 1) or not (0 <= p_0 <= 1):
+                    st.error("❌ As proporções devem estar entre 0 e 1")
+                elif n_prop <= 0:
+                    st.error("❌ O tamanho da amostra deve ser positivo")
+                elif not (0 < alpha_prop < 1):
+                    st.error("❌ O nível de significância deve estar entre 0 e 1")
+                else:
+                    # Calcular valor z
+                    numerador = p_hat - p_0
+                    denominador = math.sqrt((p_0 * (1 - p_0)) / n_prop)
+                    z_value = numerador / denominador
+                    
+                    # Calcular p-valor
+                    if test_type == 'Bicaudal':
+                        p_value = 2 * (1 - stats.norm.cdf(abs(z_value)))
+                    elif test_type == 'Unicaudal (direita)':
+                        p_value = 1 - stats.norm.cdf(z_value)
+                    else:  # Unicaudal (esquerda)
+                        p_value = stats.norm.cdf(z_value)
+                    
+                    # Determinar significância
+                    significativo = p_value < alpha_prop
+                    
+                    # Exibir resultados em cards
+                    metric_col1, metric_col2 = st.columns(2)
+                    
+                    with metric_col1:
+                        st.metric("Valor Z", f"{z_value:.4f}")
+                        st.metric("P-valor", f"{p_value:.6f}")
+                    
+                    with metric_col2:
+                        st.metric("Nível α", f"{alpha_prop:.3f}")
+                        st.metric("Tipo de Teste", test_type)
+                    
+                    # Resultado da significância
+                    if significativo:
+                        st.success("✅ **Estatisticamente SIGNIFICATIVO**")
+                        st.info(f"**Conclusão:** Rejeita-se a hipótese nula (H₀: p = {p_0})")
+                    else:
+                        st.warning("⚠️ **NÃO estatisticamente significativo**")
+                        st.info(f"**Conclusão:** Não se rejeita a hipótese nula (H₀: p = {p_0})")
+                    
+                    # Interpretação adicional
+                    with st.expander("📖 Interpretação dos Resultados"):
+                        st.write(f"""
+                        - **Valor z = {z_value:.4f}**: Medida de quantos desvios-padrão a proporção observada está da proporção esperada.
+                        - **P-valor = {p_value:.4f}**: Probabilidade de observar um resultado tão extremo quanto o obtido, assumindo que H₀ é verdadeira.
+                        - **Critério de decisão**: Como p-valor {'<' if significativo else '≥'} α ({alpha_prop}), {'rejeita-se' if significativo else 'não se rejeita'} H₀.
+                        
+                        ### 🎯 Fórmula Utilizada
+                        
+                        **z = (p̂ - p₀) / √[p₀(1-p₀)/n]**
+                        
+                        Onde:
+                        - p̂ = {p_hat} (proporção observada)
+                        - p₀ = {p_0} (proporção esperada sob H₀)
+                        - n = {n_prop} (tamanho da amostra)
+                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.4f}
+                        """)
+                    
+            except Exception as e:
+                st.error(f"❌ Erro ao calcular: {str(e)}")
+    
+    # Seção do gráfico (largura completa)
+    if calcular_prop or 'prop_calculado' in st.session_state:
+        st.markdown("---")
+        st.subheader("📊 Visualização da Distribuição Normal Padrão")
+        
+        try:
+            # Criar gráfico
+            fig, ax = plt.subplots(figsize=(12, 5))
+            
+            # Gerar distribuição normal padrão
+            x = np.linspace(-4, 4, 1000)
+            y = stats.norm.pdf(x, 0, 1)
+            
+            # Plotar curva normal
+            ax.plot(x, y, 'b-', linewidth=2.5, label='Distribuição Normal Padrão')
+            
+            # Determinar região crítica
+            if test_type == 'Bicaudal':
+                z_crit = stats.norm.ppf(1 - alpha_prop/2)
+                # Região crítica esquerda
+                x_left = x[x <= -z_crit]
+                ax.fill_between(x_left, stats.norm.pdf(x_left, 0, 1), alpha=0.4, color='red', label='Região Crítica')
+                # Região crítica direita
+                x_right = x[x >= z_crit]
+                ax.fill_between(x_right, stats.norm.pdf(x_right, 0, 1), alpha=0.4, color='red')
+                ax.axvline(-z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = ±{z_crit:.2f}')
+                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2)
+            elif test_type == 'Unicaudal (direita)':
+                z_crit = stats.norm.ppf(1 - alpha_prop)
+                x_right = x[x >= z_crit]
+                ax.fill_between(x_right, stats.norm.pdf(x_right, 0, 1), alpha=0.4, color='red', label='Região Crítica')
+                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.2f}')
+            else:  # Unicaudal (esquerda)
+                z_crit = stats.norm.ppf(alpha_prop)
+                x_left = x[x <= z_crit]
+                ax.fill_between(x_left, stats.norm.pdf(x_left, 0, 1), alpha=0.4, color='red', label='Região Crítica')
+                ax.axvline(z_crit, color='red', linestyle='--', linewidth=2, label=f'z crítico = {z_crit:.2f}')
+            
+            # Plotar valor z obtido
+            ax.axvline(z_value, color='green', linestyle='-', linewidth=3, label=f'Valor z obtido = {z_value:.2f}')
+            
+            # Configurações do gráfico
+            ax.set_xlabel('Valor z', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Densidade de Probabilidade', fontsize=12, fontweight='bold')
+            ax.set_title('Distribuição Normal Padrão com Região Crítica', fontsize=14, fontweight='bold', pad=20)
+            ax.legend(fontsize=11, loc='upper right')
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.set_xlim(-4, 4)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            
+            # Adicionar linha zero
+            ax.axhline(0, color='black', linewidth=0.5)
+            ax.axvline(0, color='black', linewidth=0.5, alpha=0.3)
+            
             st.pyplot(fig)
+            plt.close()
+            
+            # Legenda explicativa
+            st.info("""
+            **Como interpretar o gráfico:**
+            - A **curva azul** representa a distribuição normal padrão.
+            - A **área vermelha** indica a região crítica (região de rejeição de H₀).
+            - A **linha verde** mostra o valor z calculado a partir dos seus dados.
+            - Se a linha verde estiver na região vermelha, rejeita-se H₀.
+            """)
+            
+        except Exception as e:
+            st.error(f"Erro ao gerar gráfico: {str(e)}")
 
 # Rodapé
 st.markdown("---")
