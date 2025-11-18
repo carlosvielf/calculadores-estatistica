@@ -31,16 +31,16 @@ with aba1:
         
         media_amostra = st.number_input(
             "Média da Amostra (x̄)",
-            value=100.0,
-            format="%.4f",
+            value=5.8,
+            format="%.6f",
             help="Média calculada da sua amostra"
         )
         
         desvio_padrao = st.number_input(
             "Desvio Padrão (s)",
-            value=15.0,
+            value=5.0,
             min_value=0.0001,
-            format="%.4f",
+            format="%.6f",
             help="Desvio padrão da amostra"
         )
         
@@ -52,15 +52,17 @@ with aba1:
             help="Número de observações na amostra"
         )
         
-        nivel_confianca = st.number_input(
-            "Nível de Confiança (%)",
-            value=95.0,
+        nivel_confianca_input = st.number_input(
+            "Nível de Confiança",
+            value=98.0,
             min_value=0.01,
             max_value=99.99,
             step=0.01,
             format="%.2f",
-            help="Probabilidade de o intervalo conter o verdadeiro parâmetro (entre 0.01% e 99.99%)"
+            help="Probabilidade de o intervalo conter o verdadeiro parâmetro (entre 0.01 e 99.99)"
         )
+        
+        st.caption("Insira o valor como número decimal (ex: 95 para 95%, 98 para 98%)")
         
         calcular_ic = st.button("🔢 Calcular Intervalo", type="primary")
     
@@ -69,13 +71,19 @@ with aba1:
             st.session_state['ic_calculado'] = True
             
             try:
+                # Converter para porcentagem se necessário
+                if nivel_confianca_input <= 1:
+                    nivel_confianca = nivel_confianca_input * 100
+                else:
+                    nivel_confianca = nivel_confianca_input
+                
                 # Validação do nível de confiança
                 if nivel_confianca <= 0 or nivel_confianca >= 100:
-                    st.error("❌ O nível de confiança deve estar entre 0.01% e 99.99%")
+                    st.error("❌ O nível de confiança deve estar entre 0.01 e 99.99")
                 else:
                     # Cálculo do intervalo de confiança
                     alpha = 1 - (nivel_confianca / 100)
-                    graus_liberdade = tamanho_amostra - 1
+                    graus_liberdade = int(tamanho_amostra - 1)
                     
                     # Usar distribuição t de Student
                     t_critico = stats.t.ppf(1 - alpha/2, graus_liberdade)
@@ -97,13 +105,13 @@ with aba1:
                     col_a, col_b, col_c = st.columns(3)
                     
                     with col_a:
-                        st.metric("Limite Inferior", f"{limite_inferior:.4f}")
+                        st.metric("Limite Inferior", f"{limite_inferior:.5f}")
                     
                     with col_b:
                         st.metric("Média", f"{media_amostra:.4f}")
                     
                     with col_c:
-                        st.metric("Limite Superior", f"{limite_superior:.4f}")
+                        st.metric("Limite Superior", f"{limite_superior:.5f}")
                     
                     st.markdown("---")
                     
@@ -112,18 +120,30 @@ with aba1:
                     ### 📋 Detalhes do Cálculo
                     
                     - **Nível de Confiança:** {nivel_confianca:.2f}%
-                    - **Valor Crítico (t):** {t_critico:.4f}
+                    - **Valor Crítico (t):** {t_critico:.5f}
                     - **Graus de Liberdade:** {graus_liberdade}
-                    - **Erro Padrão:** {erro_padrao:.4f}
-                    - **Margem de Erro:** {margem_erro:.4f}
+                    - **Erro Padrão:** {erro_padrao:.5f}
+                    - **Margem de Erro:** {margem_erro:.5f}
+                    - **Alpha (α):** {alpha:.5f}
                     
                     ### 🎯 Interpretação
                     
                     Com {nivel_confianca:.2f}% de confiança, podemos afirmar que a **verdadeira média populacional** 
-                    está entre **{limite_inferior:.4f}** e **{limite_superior:.4f}**.
+                    está entre **{limite_inferior:.5f}** e **{limite_superior:.5f}**.
                     
                     Isso significa que, se repetíssemos este estudo 100 vezes, em aproximadamente 
-                    {nivel_confianca:.0f} dessas vezes o intervalo calculado conteria a verdadeira média populacional.
+                    {int(nivel_confianca)} dessas vezes o intervalo calculado conteria a verdadeira média populacional.
+                    
+                    ### 📊 Fórmula Utilizada
+                    
+                    **IC = x̄ ± t × (s / √n)**
+                    
+                    Onde:
+                    - x̄ = {media_amostra} (média da amostra)
+                    - t = {t_critico:.5f} (valor crítico t de Student)
+                    - s = {desvio_padrao} (desvio padrão)
+                    - n = {tamanho_amostra} (tamanho da amostra)
+                    - Erro Padrão = s / √n = {desvio_padrao} / √{tamanho_amostra} = {erro_padrao:.5f}
                     """)
                     
                     # Gráfico de visualização do intervalo
