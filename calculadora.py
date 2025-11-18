@@ -540,9 +540,11 @@ with aba3:
                     st.error("❌ O nível de significância deve estar entre 0 e 1")
                 else:
                     # Calcular valor z SEM ARREDONDAMENTO
+                    # Fórmula: z = (p̂ - p₀) / √[p₀(1-p₀)/n]
                     numerador = p_hat - p_0
-                    denominador = math.sqrt((p_0 * (1 - p_0)) / n_prop)
-                    z_value = numerador / denominador
+                    variancia = p_0 * (1 - p_0)
+                    erro_padrao = math.sqrt(variancia / n_prop)
+                    z_value = numerador / erro_padrao
                     
                     # Calcular p-valor SEM ARREDONDAMENTO
                     if test_type == 'Bicaudal':
@@ -589,13 +591,14 @@ with aba3:
                         - p̂ = {p_hat} (proporção amostral)
                         - p₀ = {p_0} (proporção populacional sob H₀)
                         - n = {n_prop} (tamanho da amostra)
-                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.8f}
+                        - Erro padrão = √[{p_0}×{1-p_0}/{n_prop}] = {erro_padrao:.8f}
                         
                         ### 📊 Cálculo Passo a Passo
                         
                         1. **Numerador:** p̂ - p₀ = {p_hat} - {p_0} = {numerador:.8f}
-                        2. **Denominador (Erro Padrão):** √[{p_0}×{1-p_0}/{n_prop}] = {denominador:.8f}
-                        3. **Estatística z:** {numerador:.8f} / {denominador:.8f} = {z_value:.8f}
+                        2. **Variância:** p₀ × (1-p₀) = {p_0} × {1-p_0} = {variancia:.8f}
+                        3. **Erro Padrão:** √[{variancia:.8f}/{n_prop}] = {erro_padrao:.8f}
+                        4. **Estatística z:** {numerador:.8f} / {erro_padrao:.8f} = {z_value:.8f}
                         """)
                     
             except Exception as e:
@@ -670,7 +673,7 @@ with aba3:
             
         except Exception as e:
             st.error(f"Erro ao gerar gráfico: {str(e)}")
-
+            
 # Rodapé
 st.markdown("---")
 st.markdown("""
